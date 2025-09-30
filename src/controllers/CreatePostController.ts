@@ -2,13 +2,13 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import z from "zod";
 import { query } from "../db/index.js";
 
+const schema = z.object({
+  title: z.string().min(1).max(255),
+  content: z.string().min(1),
+});
+
 export class CreatePostController {
   static async handler(request: FastifyRequest, reply: FastifyReply) {
-    const schema = z.object({
-      title: z.string().min(1).max(255),
-      content: z.string().min(1),
-    });
-
     const { success, data, error } = schema.safeParse(request.body);
 
     if (!success) {
