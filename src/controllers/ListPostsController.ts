@@ -19,8 +19,21 @@ export class ListPostsController {
 
     const { page, perPage } = data;
 
-    const { rows: posts } = await query("SELECT * FROM posts OFFSET 3 LIMIT 2");
+    const offset = (page - 1) * perPage;
 
-    reply.send({ data, posts });
+    const [
+      {
+        rows: [total],
+      },
+      { rows: posts },
+    ] = await Promise.all([
+      query("SELECT COUNT(id) FROM posts"),
+      query("SELECT * FROM posts OFFSET $1 LIMIT $2", [offset, perPage]),
+    ]);
+
+    const postsCount = Number(total.count);
+    const totalPages = Math.ceil(postsCount / perPage);
+
+    reply.send({ postsCount, totalPages, posts });
   }
 }
