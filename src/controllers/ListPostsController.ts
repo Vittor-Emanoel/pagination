@@ -25,16 +25,18 @@ export class ListPostsController {
       },
       { rows: posts },
     ] = await Promise.all([
-      query("SELECT COUNT(id) FROM posts"),
+      query("SELECT total_count FROM system_summary WHERE entity = $1", [
+        "posts",
+      ]),
       query("SELECT * FROM posts WHERE id > $1 ORDER BY id ASC LIMIT $2", [
         cursor ?? 0,
         perPage,
       ]),
     ]);
 
-    const postsCount = Number(total.count);
+    const postsCount = Number(total.total_count);
     const totalPages = Math.ceil(postsCount / perPage);
-    const nextCursor = posts.at(-1).id;
+    const nextCursor = posts.at(-1)?.id;
 
     reply.send({ postsCount, nextCursor, totalPages, posts });
   }

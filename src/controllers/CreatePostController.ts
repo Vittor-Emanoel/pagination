@@ -30,6 +30,15 @@ export class CreatePostController {
       [title, content],
     );
 
+    await query(
+      `
+       UPDATE system_summary
+      SET total_count = total_count + 1
+      WHERE entity = $1;
+      `,
+      ["posts"],
+    );
+
     reply.code(201).send({ post });
   }
 }
