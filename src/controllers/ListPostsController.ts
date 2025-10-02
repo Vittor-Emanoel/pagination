@@ -3,7 +3,7 @@ import z from "zod";
 import { query } from "../db/index.js";
 
 const schema = z.object({
-  page: z.coerce.number().min(1),
+  cursor: z.coerce.number().min(1).optional(),
   perPage: z.coerce.number().min(10).max(50),
 });
 
@@ -17,9 +17,7 @@ export class ListPostsController {
       });
     }
 
-    const { page, perPage } = data;
-
-    const offset = (page - 1) * perPage;
+    const { cursor, perPage } = data;
 
     const [
       {
@@ -28,12 +26,16 @@ export class ListPostsController {
       { rows: posts },
     ] = await Promise.all([
       query("SELECT COUNT(id) FROM posts"),
-      query("SELECT * FROM posts OFFSET $1 LIMIT $2", [offset, perPage]),
+      query("SELECT * FROM posts WHERE id > $1 ORDER BY id ASC LIMIT $2", [
+        cursor ?? 0,
+        perPage,
+      ]),
     ]);
 
     const postsCount = Number(total.count);
     const totalPages = Math.ceil(postsCount / perPage);
+    const nextCursor = posts.at(-1).id;
 
-    reply.send({ postsCount, totalPages, posts });
+    reply.send({ postsCount, nextCursor, totalPages, posts });
   }
 }
