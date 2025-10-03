@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import z from "zod";
-import { query } from "../db/index.js";
+import { transaction } from "../../db/index.js";
 
 const schema = z.object({
   id: z.coerce.string().min(1),
@@ -19,8 +19,21 @@ export class DeletePostController {
     const { id } = data;
 
     try {
-      await query("DELETE FROM posts WHERE id = $1", [id]);
-      reply.code(204);
+      await transaction(async (tx) => {
+        const { rowCount } = await tx.query("DELETE FROM posts WHERE id = $1", [
+          id,
+        ]);
+
+        if (rowCount && rowCount > 0) {
+          await tx.query(
+            `UPDATE system_summary
+        SET total_count = total_count - $1
+        WHERE entity = 'posts';`,
+            [rowCount],
+          );
+          reply.code(204);
+        }
+      });
     } catch (error) {
       reply.code(500).send({ error: "deu ruim" });
     }

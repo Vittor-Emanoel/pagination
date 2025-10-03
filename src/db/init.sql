@@ -15,6 +15,32 @@ CREATE TABLE system_summary(
   total_count INTEGER DEFAULT 0
 );
 
+-- functions
+
+CREATE FUNCTION update_posts_total_count() RETURNS TRIGGER AS $$
+  BEGIN
+    IF TG_OP = 'INSERT' THEN
+      UPDATE system_summary
+      SET total_count = total_count + 1
+      WHERE entity = 'posts';
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+      UPDATE system_summary
+      SET total_count = total_count - 1
+      WHERE entity = 'posts';
+    END IF;
+
+    RETURN NULL;
+  END;
+$$ LANGUAGE plpgsql;
+
+-- triggers
+
+CREATE TRIGGER update_posts_total_count
+AFTER INSERT OR DELETE ON posts
+FOR EACH ROW EXECUTE FUNCTION update_posts_total_count();
+
 --- seeds
 
 INSERT INTO system_summary(entity) VALUES ('posts');
@@ -26,9 +52,9 @@ DO $$
     FOR i IN 1..100 LOOP
       INSERT INTO posts(title, content)
       VALUES ('Post ' || i, 'Conteudo do post ' || i);
-      UPDATE system_summary
-      SET total_count = total_count + 1
-      WHERE entity = 'posts';
+      -- UPDATE system_summary
+      -- SET total_count = total_count + 1
+      -- WHERE entity = 'posts';
     END LOOP;
 END $$
 
