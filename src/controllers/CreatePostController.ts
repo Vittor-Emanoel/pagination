@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import z from "zod";
-import { query } from "../db/index.js";
+import { transaction } from "../db/index.js";
 
 const schema = z.object({
   title: z.string().min(1).max(255),
@@ -19,26 +19,34 @@ export class CreatePostController {
 
     const { title, content } = data;
 
-    const {
-      rows: [post],
-    } = await query(
-      `
-      INSERT INTO posts(title, content)
-      VALUES ($1, $2)
-      RETURNING *
-    `,
-      [title, content],
-    );
-
-    await query(
-      `
-       UPDATE system_summary
-      SET total_count = total_count + 1
-      WHERE entity = $1;
-      `,
-      ["posts"],
-    );
-
-    reply.code(201).send({ post });
+    try {
+      await transaction(async (tx) => {
+        const [
+          {
+            rows: [post],
+          },
+        ] = await Promise.all([
+          tx.query(
+            `
+            INSERT INTO posts(title, content)
+            VALUES ($1, $2)
+            RETURNING *
+          `,
+            [title, content],
+          ),
+          tx.query(
+            `
+          UPDATE system_summary
+          SET total_count = total_count + 1
+          WHERE entity = $1;
+          `,
+            ["posts"],
+          ),
+        ]);
+        reply.code(201).send({ post });
+      });
+    } catch {
+      reply.code(500).send({ error: "Deu ruim!" });
+    }
   }
 }
